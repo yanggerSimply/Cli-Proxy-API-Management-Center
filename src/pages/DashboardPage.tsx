@@ -537,7 +537,7 @@ export function DashboardPage() {
                     size="sm"
                     disabled={!rlDraft.larkWebhook || rlSaving}
                     onClick={async () => {
-                      const ok = await rateLimitApi.testLarkWebhook(rlDraft.larkWebhook, rlDraft.larkPrefix);
+                      const ok = await rateLimitApi.testLarkWebhook();
                       showNotification(
                         ok ? t('basic_settings.lark_webhook_test_ok') : t('basic_settings.lark_webhook_test_fail'),
                         ok ? 'success' : 'error'

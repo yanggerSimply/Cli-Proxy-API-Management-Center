@@ -46,27 +46,10 @@ export const rateLimitApi = {
 
   clearRateLimit: () => apiClient.delete('/rate-limit'),
 
-  testLarkWebhook: async (webhookUrl: string, prefix: string): Promise<boolean> => {
+  testLarkWebhook: async (): Promise<boolean> => {
     try {
-      const title = prefix ? `[${prefix}] ✅ CLIProxyAPI 通知测试` : '✅ CLIProxyAPI 通知测试';
-      const resp = await fetch(webhookUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          msg_type: 'interactive',
-          card: {
-            header: {
-              title: { tag: 'plain_text', content: title },
-              template: 'green',
-            },
-            elements: [
-              { tag: 'markdown', content: '**限流通知已配置成功**\n当触发 RPM/TPM/并发 限流时，你会在这里收到告警。' },
-              { tag: 'note', elements: [{ tag: 'plain_text', content: new Date().toISOString() }] },
-            ],
-          },
-        }),
-      });
-      return resp.ok;
+      await apiClient.post('/rate-limit/test-lark', {});
+      return true;
     } catch {
       return false;
     }
