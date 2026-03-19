@@ -46,7 +46,7 @@ export function DashboardPage() {
   const fetchModelsFromStore = useModelsStore((state) => state.fetchModels);
 
   const [rateLimit, setRateLimit] = useState<RateLimitConfig | null>(null);
-  const [rlDraft, setRlDraft] = useState<RateLimitConfig>({ rpm: 0, tpm: 0, warnThreshold: 0.8, exponentialBackoff: false, larkWebhook: '' });
+  const [rlDraft, setRlDraft] = useState<RateLimitConfig>({ rpm: 0, tpm: 0, maxConcurrency: 0, warnThreshold: 0.8, exponentialBackoff: false, larkWebhook: '', larkPrefix: '', larkEvents: '' });
   const [rlSaving, setRlSaving] = useState(false);
   const [rlLoading, setRlLoading] = useState(false);
 
@@ -88,7 +88,7 @@ export function DashboardPage() {
         setRlSaving(true);
         try {
           await rateLimitApi.clearRateLimit();
-          const cleared = { rpm: 0, tpm: 0, warnThreshold: 0.8, exponentialBackoff: false, larkWebhook: '' };
+          const cleared = { rpm: 0, tpm: 0, maxConcurrency: 0, warnThreshold: 0.8, exponentialBackoff: false, larkWebhook: '', larkPrefix: '', larkEvents: '' };
           setRateLimit(cleared);
           setRlDraft(cleared);
           showNotification(t('basic_settings.rate_limit_reset_success'), 'success');
@@ -105,9 +105,12 @@ export function DashboardPage() {
   const rlDirty = rateLimit !== null && (
     rlDraft.rpm !== rateLimit.rpm ||
     rlDraft.tpm !== rateLimit.tpm ||
+    rlDraft.maxConcurrency !== rateLimit.maxConcurrency ||
     rlDraft.warnThreshold !== rateLimit.warnThreshold ||
     rlDraft.exponentialBackoff !== rateLimit.exponentialBackoff ||
-    rlDraft.larkWebhook !== rateLimit.larkWebhook
+    rlDraft.larkWebhook !== rateLimit.larkWebhook ||
+    rlDraft.larkPrefix !== rateLimit.larkPrefix ||
+    rlDraft.larkEvents !== rateLimit.larkEvents
   );
 
   useEffect(() => { fetchRateLimit(); }, [fetchRateLimit]);
@@ -453,6 +456,17 @@ export function DashboardPage() {
                   />
                 </div>
                 <div className={styles.configItem} style={{ flexDirection: 'column', alignItems: 'flex-start', gap: 6 }}>
+                  <span className={styles.configLabel}>{t('basic_settings.rate_limit_max_concurrency')}</span>
+                  <Input
+                    type="number"
+                    placeholder="0"
+                    value={String(rlDraft.maxConcurrency)}
+                    onChange={(e) => setRlDraft(prev => ({ ...prev, maxConcurrency: Math.max(0, parseInt(e.target.value) || 0) }))}
+                    disabled={rlSaving}
+                    hint={t('basic_settings.rate_limit_max_concurrency_desc')}
+                  />
+                </div>
+                <div className={styles.configItem} style={{ flexDirection: 'column', alignItems: 'flex-start', gap: 6 }}>
                   <span className={styles.configLabel}>{t('basic_settings.rate_limit_warn_threshold')}</span>
                   <Input
                     type="number"
@@ -479,6 +493,32 @@ export function DashboardPage() {
                   ariaLabel={t('basic_settings.rate_limit_exponential_backoff')}
                 />
               </div>
+              <div style={{ height: 1, background: 'var(--border-color)', margin: '4px 0' }} />
+              <div style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: 14 }}>{t('basic_settings.lark_section_title')}</div>
+              <div className={styles.configGrid}>
+                <div className={styles.configItem} style={{ flexDirection: 'column', alignItems: 'flex-start', gap: 6 }}>
+                  <span className={styles.configLabel}>{t('basic_settings.lark_prefix')}</span>
+                  <Input
+                    type="text"
+                    placeholder="prod-server-1"
+                    value={rlDraft.larkPrefix}
+                    onChange={(e) => setRlDraft(prev => ({ ...prev, larkPrefix: e.target.value }))}
+                    disabled={rlSaving}
+                    hint={t('basic_settings.lark_prefix_desc')}
+                  />
+                </div>
+                <div className={styles.configItem} style={{ flexDirection: 'column', alignItems: 'flex-start', gap: 6 }}>
+                  <span className={styles.configLabel}>{t('basic_settings.lark_events')}</span>
+                  <Input
+                    type="text"
+                    placeholder="exceeded,warning"
+                    value={rlDraft.larkEvents}
+                    onChange={(e) => setRlDraft(prev => ({ ...prev, larkEvents: e.target.value }))}
+                    disabled={rlSaving}
+                    hint={t('basic_settings.lark_events_desc')}
+                  />
+                </div>
+              </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                 <span className={styles.configLabel}>{t('basic_settings.lark_webhook')}</span>
                 <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
@@ -497,7 +537,7 @@ export function DashboardPage() {
                     size="sm"
                     disabled={!rlDraft.larkWebhook || rlSaving}
                     onClick={async () => {
-                      const ok = await rateLimitApi.testLarkWebhook(rlDraft.larkWebhook);
+                      const ok = await rateLimitApi.testLarkWebhook(rlDraft.larkWebhook, rlDraft.larkPrefix);
                       showNotification(
                         ok ? t('basic_settings.lark_webhook_test_ok') : t('basic_settings.lark_webhook_test_fail'),
                         ok ? 'success' : 'error'
