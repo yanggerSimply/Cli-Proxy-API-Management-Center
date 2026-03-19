@@ -197,7 +197,7 @@
     "lark_prefix": "Notification Prefix",
     "lark_prefix_desc": "Prepended to notification titles to identify the server",
     "lark_events": "Notification Events",
-    "lark_events_desc": "Comma-separated events: exceeded (limit hit), warning (approaching threshold)",
+    "lark_events_desc": "Comma-separated events: exceeded (limit hit), warning (approaching threshold), daily (24h summary)",
     "lark_webhook": "Webhook URL",
     "lark_webhook_desc": "Lark bot webhook URL. Leave empty to disable notifications.",
     "lark_webhook_test": "Test",

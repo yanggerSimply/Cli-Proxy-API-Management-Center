@@ -197,7 +197,7 @@
     "lark_prefix": "通知前缀",
     "lark_prefix_desc": "加在通知标题前的标识，用于区分多台服务器",
     "lark_events": "通知事件",
-    "lark_events_desc": "触发通知的事件，逗号分隔: exceeded (超限), warning (接近阈值)",
+    "lark_events_desc": "触发通知的事件，逗号分隔: exceeded (超限), warning (接近阈值), daily (每日汇总)",
     "lark_webhook": "Webhook 地址",
     "lark_webhook_desc": "飞书机器人 Webhook URL，留空表示不通知",
     "lark_webhook_test": "测试",
