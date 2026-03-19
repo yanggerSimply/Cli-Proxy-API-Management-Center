@@ -7,8 +7,12 @@ import {
   IconFileText,
   IconSatellite
 } from '@/components/ui/icons';
-import { useAuthStore, useConfigStore, useModelsStore } from '@/stores';
+import { Button } from '@/components/ui/Button';
+import { ToggleSwitch } from '@/components/ui/ToggleSwitch';
+import { Input } from '@/components/ui/Input';
+import { useAuthStore, useConfigStore, useModelsStore, useNotificationStore } from '@/stores';
 import { apiKeysApi, providersApi, authFilesApi } from '@/services/api';
+import { rateLimitApi, type RateLimitConfig } from '@/services/api/rateLimit';
 import styles from './DashboardPage.module.scss';
 
 interface QuickStat {
@@ -35,9 +39,77 @@ export function DashboardPage() {
   const apiBase = useAuthStore((state) => state.apiBase);
   const config = useConfigStore((state) => state.config);
 
+  const { showNotification, showConfirmation } = useNotificationStore();
+
   const models = useModelsStore((state) => state.models);
   const modelsLoading = useModelsStore((state) => state.loading);
   const fetchModelsFromStore = useModelsStore((state) => state.fetchModels);
+
+  const [rateLimit, setRateLimit] = useState<RateLimitConfig | null>(null);
+  const [rlDraft, setRlDraft] = useState<RateLimitConfig>({ rpm: 0, tpm: 0, warnThreshold: 0.8, exponentialBackoff: false });
+  const [rlSaving, setRlSaving] = useState(false);
+  const [rlLoading, setRlLoading] = useState(false);
+
+  const fetchRateLimit = useCallback(async () => {
+    if (connectionStatus !== 'connected') return;
+    setRlLoading(true);
+    try {
+      const data = await rateLimitApi.getRateLimit();
+      setRateLimit(data);
+      setRlDraft(data);
+    } catch {
+      // ignore
+    } finally {
+      setRlLoading(false);
+    }
+  }, [connectionStatus]);
+
+  const handleRlSave = async () => {
+    setRlSaving(true);
+    try {
+      await rateLimitApi.updateRateLimit(rlDraft);
+      setRateLimit(rlDraft);
+      showNotification(t('basic_settings.rate_limit_updated'), 'success');
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : '';
+      showNotification(`${t('notification.update_failed')}${msg ? `: ${msg}` : ''}`, 'error');
+    } finally {
+      setRlSaving(false);
+    }
+  };
+
+  const handleRlReset = () => {
+    showConfirmation({
+      title: t('basic_settings.rate_limit_reset'),
+      message: t('basic_settings.rate_limit_reset_confirm'),
+      variant: 'danger',
+      confirmText: t('common.confirm'),
+      onConfirm: async () => {
+        setRlSaving(true);
+        try {
+          await rateLimitApi.clearRateLimit();
+          const cleared = { rpm: 0, tpm: 0, warnThreshold: 0.8, exponentialBackoff: false };
+          setRateLimit(cleared);
+          setRlDraft(cleared);
+          showNotification(t('basic_settings.rate_limit_reset_success'), 'success');
+        } catch (err: unknown) {
+          const msg = err instanceof Error ? err.message : '';
+          showNotification(`${t('notification.update_failed')}${msg ? `: ${msg}` : ''}`, 'error');
+        } finally {
+          setRlSaving(false);
+        }
+      },
+    });
+  };
+
+  const rlDirty = rateLimit !== null && (
+    rlDraft.rpm !== rateLimit.rpm ||
+    rlDraft.tpm !== rateLimit.tpm ||
+    rlDraft.warnThreshold !== rateLimit.warnThreshold ||
+    rlDraft.exponentialBackoff !== rateLimit.exponentialBackoff
+  );
+
+  useEffect(() => { fetchRateLimit(); }, [fetchRateLimit]);
 
   const [stats, setStats] = useState<{
     apiKeys: number | null;
@@ -343,6 +415,79 @@ export function DashboardPage() {
           <Link to="/config" className={styles.viewMoreLink}>
             {t('dashboard.edit_settings')} →
           </Link>
+        </div>
+      )}
+
+      {connectionStatus === 'connected' && (
+        <div className={styles.section}>
+          <h2 className={styles.sectionTitle}>{t('basic_settings.rate_limit_title')}</h2>
+          <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 16 }}>
+            {t('basic_settings.rate_limit_desc')}
+          </p>
+          {rlLoading ? (
+            <div className="hint">{t('common.loading')}</div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <div className={styles.configGrid}>
+                <div className={styles.configItem} style={{ flexDirection: 'column', alignItems: 'flex-start', gap: 6 }}>
+                  <span className={styles.configLabel}>{t('basic_settings.rate_limit_rpm')}</span>
+                  <Input
+                    type="number"
+                    placeholder="0"
+                    value={String(rlDraft.rpm)}
+                    onChange={(e) => setRlDraft(prev => ({ ...prev, rpm: Math.max(0, parseInt(e.target.value) || 0) }))}
+                    disabled={rlSaving}
+                    hint={t('basic_settings.rate_limit_rpm_desc')}
+                  />
+                </div>
+                <div className={styles.configItem} style={{ flexDirection: 'column', alignItems: 'flex-start', gap: 6 }}>
+                  <span className={styles.configLabel}>{t('basic_settings.rate_limit_tpm')}</span>
+                  <Input
+                    type="number"
+                    placeholder="0"
+                    value={String(rlDraft.tpm)}
+                    onChange={(e) => setRlDraft(prev => ({ ...prev, tpm: Math.max(0, parseInt(e.target.value) || 0) }))}
+                    disabled={rlSaving}
+                    hint={t('basic_settings.rate_limit_tpm_desc')}
+                  />
+                </div>
+                <div className={styles.configItem} style={{ flexDirection: 'column', alignItems: 'flex-start', gap: 6 }}>
+                  <span className={styles.configLabel}>{t('basic_settings.rate_limit_warn_threshold')}</span>
+                  <Input
+                    type="number"
+                    placeholder="0.8"
+                    value={String(rlDraft.warnThreshold)}
+                    onChange={(e) => {
+                      const v = parseFloat(e.target.value);
+                      if (!isNaN(v)) setRlDraft(prev => ({ ...prev, warnThreshold: Math.min(1, Math.max(0, v)) }));
+                    }}
+                    disabled={rlSaving}
+                    hint={t('basic_settings.rate_limit_warn_threshold_desc')}
+                  />
+                </div>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
+                <div style={{ minWidth: 220 }}>
+                  <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{t('basic_settings.rate_limit_exponential_backoff')}</div>
+                  <div style={{ marginTop: 4, fontSize: 13, color: 'var(--text-secondary)' }}>{t('basic_settings.rate_limit_exponential_backoff_desc')}</div>
+                </div>
+                <ToggleSwitch
+                  checked={rlDraft.exponentialBackoff}
+                  onChange={(v) => setRlDraft(prev => ({ ...prev, exponentialBackoff: v }))}
+                  disabled={rlSaving}
+                  ariaLabel={t('basic_settings.rate_limit_exponential_backoff')}
+                />
+              </div>
+              <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+                <Button variant="danger" size="sm" onClick={handleRlReset} disabled={rlSaving}>
+                  {t('basic_settings.rate_limit_reset')}
+                </Button>
+                <Button size="sm" onClick={handleRlSave} loading={rlSaving} disabled={!rlDirty || rlSaving}>
+                  {t('common.save')}
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>
