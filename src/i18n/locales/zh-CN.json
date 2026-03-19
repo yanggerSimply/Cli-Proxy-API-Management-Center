@@ -190,7 +190,12 @@
     "rate_limit_reset": "重置限流配置",
     "rate_limit_reset_confirm": "确定要关闭限流并重置所有配置吗？",
     "rate_limit_updated": "限流配置已更新",
-    "rate_limit_reset_success": "限流配置已重置"
+    "rate_limit_reset_success": "限流配置已重置",
+    "lark_webhook": "飞书通知 Webhook",
+    "lark_webhook_desc": "触发限流时发送告警到飞书机器人，留空表示不通知",
+    "lark_webhook_test": "测试",
+    "lark_webhook_test_ok": "飞书通知发送成功，请检查机器人消息",
+    "lark_webhook_test_fail": "飞书通知发送失败，请检查 Webhook 地址"
   },
   "api_keys": {
     "title": "API 密钥管理",

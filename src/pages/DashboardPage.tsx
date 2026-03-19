@@ -46,7 +46,7 @@ export function DashboardPage() {
   const fetchModelsFromStore = useModelsStore((state) => state.fetchModels);
 
   const [rateLimit, setRateLimit] = useState<RateLimitConfig | null>(null);
-  const [rlDraft, setRlDraft] = useState<RateLimitConfig>({ rpm: 0, tpm: 0, warnThreshold: 0.8, exponentialBackoff: false });
+  const [rlDraft, setRlDraft] = useState<RateLimitConfig>({ rpm: 0, tpm: 0, warnThreshold: 0.8, exponentialBackoff: false, larkWebhook: '' });
   const [rlSaving, setRlSaving] = useState(false);
   const [rlLoading, setRlLoading] = useState(false);
 
@@ -88,7 +88,7 @@ export function DashboardPage() {
         setRlSaving(true);
         try {
           await rateLimitApi.clearRateLimit();
-          const cleared = { rpm: 0, tpm: 0, warnThreshold: 0.8, exponentialBackoff: false };
+          const cleared = { rpm: 0, tpm: 0, warnThreshold: 0.8, exponentialBackoff: false, larkWebhook: '' };
           setRateLimit(cleared);
           setRlDraft(cleared);
           showNotification(t('basic_settings.rate_limit_reset_success'), 'success');
@@ -106,7 +106,8 @@ export function DashboardPage() {
     rlDraft.rpm !== rateLimit.rpm ||
     rlDraft.tpm !== rateLimit.tpm ||
     rlDraft.warnThreshold !== rateLimit.warnThreshold ||
-    rlDraft.exponentialBackoff !== rateLimit.exponentialBackoff
+    rlDraft.exponentialBackoff !== rateLimit.exponentialBackoff ||
+    rlDraft.larkWebhook !== rateLimit.larkWebhook
   );
 
   useEffect(() => { fetchRateLimit(); }, [fetchRateLimit]);
@@ -477,6 +478,35 @@ export function DashboardPage() {
                   disabled={rlSaving}
                   ariaLabel={t('basic_settings.rate_limit_exponential_backoff')}
                 />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <span className={styles.configLabel}>{t('basic_settings.lark_webhook')}</span>
+                <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+                  <div style={{ flex: 1 }}>
+                    <Input
+                      type="text"
+                      placeholder="https://open.larksuite.com/open-apis/bot/v2/hook/xxxx"
+                      value={rlDraft.larkWebhook}
+                      onChange={(e) => setRlDraft(prev => ({ ...prev, larkWebhook: e.target.value }))}
+                      disabled={rlSaving}
+                      hint={t('basic_settings.lark_webhook_desc')}
+                    />
+                  </div>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    disabled={!rlDraft.larkWebhook || rlSaving}
+                    onClick={async () => {
+                      const ok = await rateLimitApi.testLarkWebhook(rlDraft.larkWebhook);
+                      showNotification(
+                        ok ? t('basic_settings.lark_webhook_test_ok') : t('basic_settings.lark_webhook_test_fail'),
+                        ok ? 'success' : 'error'
+                      );
+                    }}
+                  >
+                    {t('basic_settings.lark_webhook_test')}
+                  </Button>
+                </div>
               </div>
               <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
                 <Button variant="danger" size="sm" onClick={handleRlReset} disabled={rlSaving}>
